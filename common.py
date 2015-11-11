@@ -12,7 +12,7 @@ import random
 token = None
 
 
-def prepare(use_proxy, https):
+def prepare(use_proxy):
     ckp = urllib2.HTTPCookieProcessor(cookielib.CookieJar())
 
     if use_proxy:

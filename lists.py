@@ -23,7 +23,7 @@ def main():
     index = config.getint("default", "page_index")
 
     use_proxy = config.getboolean("default", "use_proxy")
-    common.prepare(use_proxy=use_proxy, https=False)
+    common.prepare(use_proxy=use_proxy)
 
     while True:
         try:

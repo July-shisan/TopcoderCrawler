@@ -1,8 +1,8 @@
+
 import ConfigParser
 import os
 import urllib2
 
-import pickle
 from pymongo import MongoClient
 
 import common
@@ -51,35 +51,37 @@ def main():
     config.read("config/users.ini")
 
     use_proxy = config.getboolean("default", "proxy")
-    common.prepare(use_proxy=use_proxy, https=True)
+    common.prepare(use_proxy=use_proxy)
 
     client = MongoClient()
     db = client.topcoder
 
-    if os.path.exists("config/invalid_handle"):
-        with open("config/invalid_handle", "rb") as fp:
-            invalid = pickle.load(fp)
-    else:
-        invalid = set()
+    invalid = set()
+
+    if os.path.exists("config/invalid_handles"):
+        for line in open("config/invalid_handles"):
+            line = line.strip()
+            if line:
+                invalid.add(line)
 
     for challenge in db.challenges.find():
         for reg in challenge["registrants"]:
-            uname = reg["handle"]
+            handle = reg["handle"].lower()
 
-            if ' ' in uname:
+            if ' ' in handle:
                 continue
 
-            if uname in invalid:
+            if handle in invalid:
                 continue
 
-            if db.users.find_one({"handle": uname}):
+            if db.users.find_one({"handle": handle}):
                 continue
 
-            print uname
+            print reg["handle"]
 
             while True:
                 try:
-                    request = common.make_request("/v3.0.0/members/" + uname)
+                    request = common.make_request("/v3.0.0/members/" + handle)
                     s = urllib2.urlopen(request).read()
 
                     d = common.to_json(s)["result"]["content"]
@@ -93,9 +95,11 @@ def main():
 
                 except urllib2.HTTPError, e:
                     if e.code == 404 or e.code == 403:
-                        with open("config/invalid_handle", "wb") as fp:
-                            invalid.add(uname)
-                            pickle.dump(invalid, fp)
+                        invalid.add(handle)
+
+                        with open("config/invalid_handles", "w") as fp:
+                            for handle in invalid:
+                                fp.write(handle + '\n')
 
                         break
                     else:
