@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/Topcoder.iml" filepath="$PROJECT_DIR$/.idea/Topcoder.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/TopcoderCrawler.iml" filepath="$PROJECT_DIR$/.idea/TopcoderCrawler.iml" />
     </modules>
   </component>
 </project>
