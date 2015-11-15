@@ -1,11 +1,44 @@
 
 import ConfigParser
+import dateutil.parser
 import json
 
 from urllib2 import HTTPError, urlopen
 from pymongo import MongoClient
 
 import common
+
+
+def format_challenge(challenge):
+    datetime_keys = (
+        "postingDate",
+        "appealsEndDate",
+        "registrationEndDate",
+        "submissionEndDate",
+        "currentPhaseEndDate",
+    )
+
+    for key in datetime_keys:
+        dt = dateutil.parser.parse(challenge[key])
+        challenge[key] = dt
+
+    for reg in challenge["registrants"]:
+        for attr in ("colorStyle", "rating", "reliability"):
+            reg[attr] = None
+            del reg[attr]
+
+        dt = dateutil.parser.parse(reg["registrationDate"])
+        reg["registrationDate"] = dt
+
+        if reg["submissionDate"]:
+            dt = dateutil.parser.parse(reg["submissionDate"])
+            reg["submissionDate"] = dt
+        else:
+            reg["submissionDate"] = None
+
+    for sub in challenge["finalSubmissions"]:
+        dt = dateutil.parser.parse(sub["submissionDate"])
+        sub["submissionDate"] = dt
 
 
 def filter_out(cid):
@@ -20,7 +53,11 @@ def main():
     config.read("config/challenges.ini")
 
     init = config.getboolean("default", "init")
-    index = config.getint("default", "page_index")
+
+    if init:
+        index = config.getint("default", "page_index")
+    else:
+        index = 1
 
     use_proxy = config.getboolean("default", "use_proxy")
     common.prepare(use_proxy=use_proxy)
@@ -37,6 +74,7 @@ def main():
             print "Page", index
 
             lists = json.loads(response_body)
+
             for challenge in lists["data"]:
                 cid = challenge["challengeId"]
 
@@ -67,14 +105,16 @@ def main():
 
                 d.update(registrants)
                 d.update(submissions)
+                format_challenge(d)
 
                 db.challenges.insert_one(d)
 
             index += 1
 
-            config.set("default", "page_index", index)
-            with open("config/challenges.ini", "wb") as fp:
-                config.write(fp)
+            if init:
+                config.set("default", "page_index", index)
+                with open("config/challenges.ini", "wb") as fp:
+                    config.write(fp)
 
             common.random_sleep(10)
             continue
