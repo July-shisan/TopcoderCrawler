@@ -4,12 +4,16 @@ import os
 import urllib2
 
 from pymongo import MongoClient
+import dateutil.parser
 
 import common
 
 
-def crawl_user():
-    pass
+def refine_user(d):
+    d["handle"] = d["handle"].lower()
+
+    for key in ("createdAt", "updatedAt",):
+        d[key] = dateutil.parser.parse(d[key])
 
 
 def user_skills(d):
@@ -56,6 +60,10 @@ def main():
     client = MongoClient()
     db = client.topcoder
 
+    print "Crawling users..."
+    print "Current:", db.users.count()
+    print "-----"
+
     invalid = set()
 
     if os.path.exists("config/invalid_handles"):
@@ -85,7 +93,8 @@ def main():
                     s = urllib2.urlopen(request).read()
 
                     d = common.to_json(s)["result"]["content"]
-                    d["handle"] = d["handle"].lower()
+                    refine_user(d)
+
                     user_skills(d)
 
                     db.users.insert_one(d)

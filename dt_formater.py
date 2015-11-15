@@ -21,6 +21,7 @@ def format_challenge(challenge):
     for key in datetime_keys:
         dt = dateutil.parser.parse(challenge[key])
         challenge[key] = dt
+
     for reg in challenge[u"registrants"]:
         for attr in (u"colorStyle", u"rating", u"reliability"):
             reg[attr] = None
@@ -34,6 +35,7 @@ def format_challenge(challenge):
             reg[u"submissionDate"] = dt
         else:
             reg[u"submissionDate"] = None
+
     for sub in challenge[u"finalSubmissions"]:
         dt = dateutil.parser.parse(sub[u"submissionDate"])
         sub[u"submissionDate"] = dt
