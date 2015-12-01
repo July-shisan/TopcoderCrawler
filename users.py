@@ -1,47 +1,52 @@
+# -*- coding: utf-8 -*-
 
 import ConfigParser
 import os
 import urllib2
 
 from pymongo import MongoClient
+import dateutil.parser
 
 import common
 
 
-def crawl_user():
-    pass
+def refine_user(d):
+    d[u"handle"] = d[u"handle"].lower()
+
+    for key in (u"createdAt", u"updatedAt",):
+        d[key] = dateutil.parser.parse(d[key])
 
 
 def user_skills(d):
-    request = common.make_request("/v3.0.0/members/%s/skills/" % d["handle"])
+    request = common.make_request(u"/v3.0.0/members/%s/skills/" % d[u"handle"])
     skills = common.to_json(urllib2.urlopen(request).read())
-    skills = skills["result"]["content"]["skills"]
+    skills = skills[u"result"][u"content"][u"skills"]
 
     for dd in skills.values():
-        del dd["hidden"]
+        del dd[u"hidden"]
 
-    d["skills"] = skills
+    d[u"skills"] = skills
 
 
 def user_stats(d):
-    extra_info(d, "stats")
+    extra_info(d, u"stats")
 
 
 def user_external_accounts(d):
-    extra_info(d, "externalAccounts")
+    extra_info(d, u"externalAccounts")
 
 
 def extra_info(d, category):
-    request = common.make_request("/v3.0.0/members/%s/%s/" % (d["handle"], category))
-    info = common.to_json(urllib2.urlopen(request).read())["result"]["content"]
+    request = common.make_request(u"/v3.0.0/members/%s/%s/" % (d[u"handle"], category))
+    info = common.to_json(urllib2.urlopen(request).read())[u"result"][u"content"]
 
-    del info["handle"]
-    del info["userId"]
+    del info[u"handle"]
+    del info[u"userId"]
 
-    del info["createdBy"]
-    del info["createdAt"]
-    del info["updatedBy"]
-    del info["updatedAt"]
+    del info[u"createdBy"]
+    del info[u"createdAt"]
+    del info[u"updatedBy"]
+    del info[u"updatedAt"]
 
     d[category] = info
 
@@ -56,6 +61,10 @@ def main():
     client = MongoClient()
     db = client.topcoder
 
+    print "Crawling users..."
+    print "Current:", db.users.count()
+    print "-----"
+
     invalid = set()
 
     if os.path.exists("config/invalid_handles"):
@@ -68,24 +77,25 @@ def main():
         for reg in challenge["registrants"]:
             handle = reg["handle"].lower()
 
-            if ' ' in handle:
+            if u' ' in handle:
                 continue
 
             if handle in invalid:
                 continue
 
-            if db.users.find_one({"handle": handle}):
+            if db.users.find_one({u"handle": handle}):
                 continue
 
-            print reg["handle"]
+            print reg[u"handle"]
 
             while True:
                 try:
-                    request = common.make_request("/v3.0.0/members/" + handle)
-                    s = urllib2.urlopen(request).read()
+                    request = common.make_request(u"/v3.0.0/members/" + handle)
+                    s = urllib2.urlopen(request).read().decode("utf-8")
 
-                    d = common.to_json(s)["result"]["content"]
-                    d["handle"] = d["handle"].lower()
+                    d = common.to_json(s)[u"result"][u"content"]
+                    refine_user(d)
+
                     user_skills(d)
 
                     db.users.insert_one(d)
@@ -98,7 +108,7 @@ def main():
                         invalid.add(handle)
 
                         with open("config/invalid_handles", "w") as fp:
-                            for handle in invalid:
+                            for handle in sorted(invalid):
                                 fp.write(handle + '\n')
 
                         break

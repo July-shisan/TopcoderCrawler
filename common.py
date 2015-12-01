@@ -1,6 +1,7 @@
+
 import cookielib
 from StringIO import StringIO
-from urllib import urlencode
+from urllib import urlencode, quote
 import urllib2
 import gzip
 
@@ -50,7 +51,9 @@ def make_request(method):
     if token is not None:
         headers["Authorization"] = "Bearer " + token
 
-    request = urllib2.Request("http://api.topcoder.com/" + method, headers=headers)
+    url = "http://api.topcoder.com" + quote(method.encode("utf-8"))
+    request = urllib2.Request(url, headers=headers)
+
     return request
 
 
