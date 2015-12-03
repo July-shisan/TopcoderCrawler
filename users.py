@@ -63,7 +63,6 @@ def main():
 
     print "Crawling users..."
     print "Current:", db.users.count()
-    print "-----"
 
     invalid = set()
 
@@ -72,6 +71,8 @@ def main():
             line = line.strip()
             if line:
                 invalid.add(line)
+
+    handles = set()
 
     for challenge in db.challenges.find():
         for reg in challenge["registrants"]:
@@ -83,43 +84,52 @@ def main():
             if handle in invalid:
                 continue
 
+            if handle in handles:
+                continue
+
             if db.users.find_one({u"handle": handle}):
                 continue
 
-            print reg[u"handle"]
+            handles.add(handle)
 
-            while True:
-                try:
-                    request = common.make_request(u"/v3.0.0/members/" + handle)
-                    s = urllib2.urlopen(request).read().decode("utf-8")
+    print len(handles), "users to be crawled."
+    print "-----"
 
-                    d = common.to_json(s)[u"result"][u"content"]
-                    refine_user(d)
+    for handle in handles:
+        print handle
 
-                    user_skills(d)
+        while True:
+            try:
+                request = common.make_request(u"/v3.0.0/members/" + handle)
+                s = urllib2.urlopen(request).read().decode("utf-8")
 
-                    db.users.insert_one(d)
+                d = common.to_json(s)[u"result"][u"content"]
+                refine_user(d)
 
-                    common.random_sleep(1)
+                user_skills(d)
+
+                db.users.insert_one(d)
+
+                common.random_sleep(1)
+                break
+
+            except urllib2.HTTPError, e:
+                if e.code == 404 or e.code == 403:
+                    invalid.add(handle)
+
+                    with open("config/invalid_handles", "w") as fp:
+                        for h in sorted(invalid):
+                            fp.write(h + '\n')
+
                     break
+                else:
+                    print "HTTP Error", e.code, e.msg
+                    print e.fp.read()
+            except Exception, e:
+                print "An unknown exception occurred."
+                print e
 
-                except urllib2.HTTPError, e:
-                    if e.code == 404 or e.code == 403:
-                        invalid.add(handle)
-
-                        with open("config/invalid_handles", "w") as fp:
-                            for handle in sorted(invalid):
-                                fp.write(handle + '\n')
-
-                        break
-                    else:
-                        print "HTTP Error", e.code, e.msg
-                        print e.fp.read()
-                except Exception, e:
-                    print "An unknown exception occured."
-                    print e
-
-                common.random_sleep(20)
+            common.random_sleep(20)
 
 
 if __name__ == '__main__':
