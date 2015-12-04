@@ -78,7 +78,7 @@ def main():
         for reg in challenge["registrants"]:
             handle = reg["handle"].lower()
 
-            if u' ' in handle:
+            if u' ' in handle or u'/' in handle or u'\\' in handle:
                 continue
 
             if handle in invalid:
