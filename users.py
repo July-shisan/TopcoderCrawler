@@ -125,6 +125,7 @@ def main():
                         for h in sorted(invalid):
                             fp.write(h + '\n')
 
+                    common.random_sleep(1)
                     break
                 else:
                     print "HTTP Error", e.code, e.msg
