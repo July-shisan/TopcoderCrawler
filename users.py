@@ -2,7 +2,9 @@
 
 import ConfigParser
 import os
+
 import urllib2
+from urllib import quote
 
 from pymongo import MongoClient
 import dateutil.parser
@@ -18,7 +20,8 @@ def refine_user(d):
 
 
 def user_skills(d):
-    request = common.make_request(u"/v3.0.0/members/%s/skills/" % d[u"handle"])
+    quoted = quote(d[u"handle"])
+    request = common.make_request(u"/v3.0.0/members/%s/skills/" % quoted)
     skills = common.to_json(urllib2.urlopen(request).read())
     skills = skills[u"result"][u"content"][u"skills"]
 
@@ -37,7 +40,8 @@ def user_external_accounts(d):
 
 
 def extra_info(d, category):
-    request = common.make_request(u"/v3.0.0/members/%s/%s/" % (d[u"handle"], category))
+    quoted = quote(d[u"handle"])
+    request = common.make_request(u"/v3.0.0/members/%s/%s/" % (quoted, category))
     info = common.to_json(urllib2.urlopen(request).read())[u"result"][u"content"]
 
     del info[u"handle"]
@@ -100,7 +104,7 @@ def main():
 
         while True:
             try:
-                request = common.make_request(u"/v3.0.0/members/" + handle)
+                request = common.make_request(u"/v3.0.0/members/" + quote(handle))
                 s = urllib2.urlopen(request).read().decode("utf-8")
 
                 d = common.to_json(s)[u"result"][u"content"]

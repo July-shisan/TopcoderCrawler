@@ -1,7 +1,7 @@
 
 import cookielib
 from StringIO import StringIO
-from urllib import urlencode, quote
+from urllib import urlencode
 import urllib2
 import gzip
 
@@ -51,7 +51,7 @@ def make_request(method):
     if token is not None:
         headers["Authorization"] = "Bearer " + token
 
-    url = "http://api.topcoder.com" + quote(method.encode("utf-8"))
+    url = "http://api.topcoder.com" + method.encode("utf-8")
     request = urllib2.Request(url, headers=headers)
 
     return request
@@ -59,7 +59,7 @@ def make_request(method):
 
 def simple_read(url):
     headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; Baiduspider/2.0; +http://www.baidu.com/search/spider.html)",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:41.0) Gecko/20100101 Firefox/41.0",
         "Accept-Encoding": "gzip",
         "Cache-Control": "no-cache",
     }
