@@ -1,9 +1,7 @@
-
 import ConfigParser
-import dateutil.parser
 import json
 
-from urllib2 import HTTPError, urlopen
+import dateutil.parser
 from pymongo import MongoClient
 
 import common
@@ -63,70 +61,56 @@ def main():
     common.prepare(use_proxy=use_proxy)
 
     while True:
-        try:
-            path = "/v2/challenges/past?type=develop&pageIndex=%d&pageSize=10" % index
-            request = common.make_request(path)
-            response_body = urlopen(request).read()
+        path = "/v2/challenges/past?type=develop&pageIndex=%d&pageSize=10" % index
+        raw = common.guarded_read(path)
 
-            if '"data": []' in response_body:
-                return
+        if '"data": []' in raw:
+            return
 
-            print "Page", index
+        print "Page", index
 
-            lists = json.loads(response_body)
+        lists = json.loads(raw)
 
-            for challenge in lists["data"]:
-                cid = challenge["challengeId"]
+        for challenge in lists["data"]:
+            cid = challenge["challengeId"]
 
-                if filter_out(cid):
+            if filter_out(cid):
+                continue
+
+            if db.challenges.find_one({"challengeId": cid}):
+                if init:
                     continue
+                else:
+                    return
 
-                if db.challenges.find_one({"challengeId": cid}):
-                    if init:
-                        continue
-                    else:
-                        return
+            common.random_sleep(1)
 
-                common.random_sleep(1)
+            print ' ', challenge["challengeName"]
 
-                print ' ', challenge["challengeName"]
+            path = "/v2/challenges/" + str(cid)
+            d = common.to_json(common.guarded_read(path))
 
-                request = common.make_request("/v2/challenges/" + str(cid))
-                d = common.to_json(urlopen(request).read())
+            path = "/v2/challenges/registrants/" + str(cid)
+            raw = '{"registrants": %s}' % common.guarded_read(path)
+            registrants = common.to_json(raw)
 
-                path = "/v2/challenges/registrants/" + str(cid)
-                request = common.make_request(path)
-                s = '{"registrants": %s}' % urlopen(request).read()
-                registrants = common.to_json(s)
+            path = "/v2/challenges/submissions/" + str(cid)
+            submissions = common.to_json(common.guarded_read(path))
 
-                path = "/v2/challenges/submissions/" + str(cid)
-                request = common.make_request(path)
-                submissions = common.to_json(urlopen(request).read())
+            d.update(registrants)
+            d.update(submissions)
+            format_challenge(d)
 
-                d.update(registrants)
-                d.update(submissions)
-                format_challenge(d)
+            db.challenges.insert_one(d)
 
-                db.challenges.insert_one(d)
+        index += 1
 
-            index += 1
+        if init:
+            config.set("default", "page_index", index)
+            with open("config/challenges.ini", "wb") as fp:
+                config.write(fp)
 
-            if init:
-                config.set("default", "page_index", index)
-                with open("config/challenges.ini", "wb") as fp:
-                    config.write(fp)
-
-            common.random_sleep(10)
-            continue
-
-        except HTTPError, e:
-            print "HTTP Error", e.code, e.msg
-            print e.geturl()
-            print e.fp.read()
-        except Exception, e:
-            print e
-
-        common.random_sleep(20)
+        common.random_sleep(10)
 
 
 if __name__ == "__main__":

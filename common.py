@@ -57,6 +57,22 @@ def make_request(method):
     return request
 
 
+def guarded_read(method):
+    while True:
+        try:
+            request = make_request(method)
+            return urllib2.urlopen(request).read()
+
+        except urllib2.HTTPError, e:
+            print "HTTP Error", e.code, e.msg
+            print e.geturl()
+            print e.fp.read()
+        except Exception, e:
+            print e
+
+        random_sleep(20)
+
+
 def simple_read(url):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:41.0) Gecko/20100101 Firefox/41.0",
