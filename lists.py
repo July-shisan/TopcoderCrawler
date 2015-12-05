@@ -1,8 +1,8 @@
 import ConfigParser
 import json
 
-import dateutil.parser
-from pymongo import MongoClient
+import dateutil.parser  # pip install python-dateutil
+from pymongo import MongoClient  # pip install pymongo
 
 import common
 
