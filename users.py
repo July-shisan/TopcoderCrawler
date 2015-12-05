@@ -137,7 +137,7 @@ def main():
             common.random_sleep(20)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     while True:
         try:
             main()
