@@ -128,6 +128,7 @@ def main():
                     break
                 else:
                     print "HTTP Error", e.code, e.msg
+                    print e.geturl()
                     print e.fp.read()
             except Exception, e:
                 print "An unknown exception occurred."

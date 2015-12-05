@@ -121,6 +121,7 @@ def main():
 
         except HTTPError, e:
             print "HTTP Error", e.code, e.msg
+            print e.geturl()
             print e.fp.read()
         except Exception, e:
             print e
