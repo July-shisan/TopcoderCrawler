@@ -41,15 +41,31 @@ def login():
     token = resp["token"]
 
 
+_std_headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:41.0) Gecko/20100101 Firefox/41.0",
+    "Accept-Language": "zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3",
+    "Accept-Encoding": "gzip",
+    "Cache-Control": "no-cache",
+}
+
+
+def _read(response):
+    if response.info().get("Content-Encoding") == "gzip":
+        buf = StringIO(response.read())
+        f = gzip.GzipFile(fileobj=buf)
+
+        return f.read()
+    else:
+        return response.read()
+
+
 def make_request(method):
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:41.0) Gecko/20100101 Firefox/41.0",
-        "Accept-Language": "zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3",
-        "Cache-Control": "no-cache",
-    }
+    headers = {}
 
     if token is not None:
         headers["Authorization"] = "Bearer " + token
+
+    headers.update(_std_headers)
 
     url = "http://api.topcoder.com" + method.encode("utf-8")
     request = urllib2.Request(url, headers=headers)
@@ -61,7 +77,9 @@ def guarded_read(method):
     while True:
         try:
             request = make_request(method)
-            return urllib2.urlopen(request).read()
+            response = urllib2.urlopen(request)
+
+            return _read(response)
 
         except urllib2.HTTPError, e:
             print "HTTP Error", e.code, e.msg
@@ -74,21 +92,10 @@ def guarded_read(method):
 
 
 def simple_read(url):
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:41.0) Gecko/20100101 Firefox/41.0",
-        "Accept-Encoding": "gzip",
-        "Cache-Control": "no-cache",
-    }
-
-    request = urllib2.Request(url, headers=headers)
+    request = urllib2.Request(url, headers=_std_headers)
     response = urllib2.urlopen(request)
 
-    if response.info().get("Content-Encoding") == "gzip":
-        buf = StringIO(response.read())
-        f = gzip.GzipFile(fileobj=buf)
-        return f.read()
-    else:
-        return response.read()
+    return _read(response)
 
 
 def to_json(raw):
