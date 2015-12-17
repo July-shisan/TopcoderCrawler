@@ -22,7 +22,8 @@ def refine_user(d):
 def user_skills(d):
     quoted = quote(d[u"handle"])
     request = common.make_request(u"/v3.0.0/members/%s/skills/" % quoted)
-    skills = common.to_json(urllib2.urlopen(request).read())
+    raw = common.open_request_and_read(request).decode("utf-8")
+    skills = common.to_json(raw)
     skills = skills[u"result"][u"content"][u"skills"]
 
     for dd in skills.values():
@@ -42,7 +43,8 @@ def user_external_accounts(d):
 def extra_info(d, category):
     quoted = quote(d[u"handle"])
     request = common.make_request(u"/v3.0.0/members/%s/%s/" % (quoted, category))
-    info = common.to_json(urllib2.urlopen(request).read())[u"result"][u"content"]
+    raw = common.open_request_and_read(request).decode("utf-8")
+    info = common.to_json(raw)[u"result"][u"content"]
 
     del info[u"handle"]
     del info[u"userId"]
@@ -105,7 +107,7 @@ def main():
         while True:
             try:
                 request = common.make_request(u"/v3.0.0/members/" + quote(handle))
-                s = urllib2.urlopen(request).read().decode("utf-8")
+                s = common.open_request_and_read(request).decode("utf-8")
 
                 d = common.to_json(s)[u"result"][u"content"]
                 refine_user(d)
@@ -132,7 +134,7 @@ def main():
                     print e.geturl()
                     print e.fp.read()
             except Exception, e:
-                print "An unknown exception occurred."
+                print "An unknown exception occurred:"
                 print e
 
             common.random_sleep(20)

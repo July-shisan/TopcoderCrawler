@@ -49,7 +49,8 @@ _std_headers = {
 }
 
 
-def _read(response):
+def open_request_and_read(request):
+    response = urllib2.urlopen(request)
     if response.info().get("Content-Encoding") == "gzip":
         buf = StringIO(response.read())
         f = gzip.GzipFile(fileobj=buf)
@@ -76,11 +77,7 @@ def make_request(method):
 def guarded_read(method):
     while True:
         try:
-            request = make_request(method)
-            response = urllib2.urlopen(request)
-
-            return _read(response)
-
+            return open_request_and_read(make_request(method))
         except urllib2.HTTPError, e:
             print "HTTP Error", e.code, e.msg
             print e.geturl()
@@ -92,17 +89,16 @@ def guarded_read(method):
 
 
 def simple_read(url):
-    request = urllib2.Request(url, headers=_std_headers)
-    response = urllib2.urlopen(request)
-
-    return _read(response)
+    return open_request_and_read(urllib2.Request(url, headers=_std_headers))
 
 
 def to_json(raw):
+    assert isinstance(raw, unicode)
+
     d = json.loads(raw)
-    if "requesterInformation" in d:
-        del d["requesterInformation"]
-        del d["serverInformation"]
+    if u"requesterInformation" in d:
+        del d[u"requesterInformation"]
+        del d[u"serverInformation"]
 
     return d
 
