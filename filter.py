@@ -30,5 +30,5 @@ def main(win_times, year_from):
 
     print "\n\nTotal:", total
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main(win_times=5, year_from=2014)
