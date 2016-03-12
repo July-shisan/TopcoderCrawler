@@ -93,7 +93,8 @@ def simple_read(url):
 
 
 def to_json(raw):
-    assert isinstance(raw, unicode)
+    if not isinstance(raw, unicode):
+        raw = raw.decode("utf-8")
 
     d = json.loads(raw)
     if u"requesterInformation" in d:
