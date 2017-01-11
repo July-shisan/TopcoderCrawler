@@ -17,8 +17,14 @@ def format_challenge(challenge):
     )
 
     for key in datetime_keys:
-        dt = dateutil.parser.parse(challenge[key])
-        challenge[key] = dt
+        if key in challenge:
+            s = challenge[key]
+            if not s:
+                del challenge[key]
+                continue
+
+            dt = dateutil.parser.parse(s)
+            challenge[key] = dt
 
     for reg in challenge["registrants"]:
         for attr in ("colorStyle", "rating", "reliability"):
