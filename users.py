@@ -1,7 +1,6 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 
-import ConfigParser
 import os
 import traceback
 import urllib2
@@ -11,6 +10,10 @@ import dateutil.parser
 from pymongo import MongoClient
 
 import common
+import config.users as g_config
+
+
+INVALID_HANDLES_FPATH = "config/invalid_handles"
 
 
 def refine_user(d):
@@ -22,7 +25,7 @@ def refine_user(d):
 
 def user_skills(d):
     quoted = quote(d[u"handle"])
-    request = common.make_request(u"/v3.0.0/members/%s/skills/" % quoted)
+    request = common.make_request(u"/v3/members/%s/skills/" % quoted)
     raw = common.open_request_and_read(request).decode("utf-8")
     skills = common.to_json(raw)
     skills = skills[u"result"][u"content"][u"skills"]
@@ -43,7 +46,7 @@ def user_external_accounts(d):
 
 def extra_info(d, category):
     quoted = quote(d[u"handle"])
-    request = common.make_request(u"/v3.0.0/members/%s/%s/" % (quoted, category))
+    request = common.make_request(u"/v3/members/%s/%s/" % (quoted, category))
     raw = common.open_request_and_read(request).decode("utf-8")
     info = common.to_json(raw)[u"result"][u"content"]
 
@@ -59,11 +62,7 @@ def extra_info(d, category):
 
 
 def main():
-    config = ConfigParser.RawConfigParser()
-    config.read("config/users.ini")
-
-    use_proxy = config.getboolean("default", "proxy")
-    common.prepare(use_proxy=use_proxy)
+    common.prepare(use_proxy=g_config.use_proxy)
 
     client = MongoClient()
     db = client.topcoder
@@ -71,16 +70,23 @@ def main():
     print "Crawling users..."
     print "Current:", db.users.count()
 
+    if g_config.recrawl_all:
+        print "Recrawl all users"
+
+    if g_config.recheck_invalid_handles:
+        print "Recheck invalid handles"
+
     invalid = set()
 
     def add_invalid_handle(hdl):
         invalid.add(hdl)
-        with open("config/invalid_handles", "w") as fp:
+
+        with open(INVALID_HANDLES_FPATH, "w") as fp:
             for h in sorted(invalid):
                 fp.write(h.encode("utf-8") + '\n')
 
-    if os.path.exists("config/invalid_handles"):
-        for line in open("config/invalid_handles"):
+    if os.path.exists(INVALID_HANDLES_FPATH):
+        for line in open(INVALID_HANDLES_FPATH):
             line = line.strip()
             if line:
                 invalid.add(line)
@@ -101,12 +107,20 @@ def main():
             if handle in handles:
                 continue
 
-            if db.users.find_one({u"handle": handle}):
-                continue
+            if not g_config.recrawl_all:
+                if db.users.find_one({u"handle": handle}, {u"_id": 1}):
+                    continue
 
             handles.add(handle)
 
-    print len(handles), "users to be crawled."
+    if g_config.recheck_invalid_handles or g_config.recrawl_all:
+        handles.update(invalid)
+        invalid = set()
+
+        if os.path.exists(INVALID_HANDLES_FPATH):
+            os.rename(INVALID_HANDLES_FPATH, INVALID_HANDLES_FPATH + ".bak")
+
+    print len(handles), "users to be crawled"
     print "-----"
 
     for index, handle in enumerate(handles):
@@ -122,20 +136,21 @@ def main():
 
                     break
 
-                request = common.make_request(u"/v3.0.0/members/" + quoted)
+                request = common.make_request(u"/v3/members/" + quoted)
                 s = common.open_request_and_read(request).decode("utf-8")
-
                 d = common.to_json(s)[u"result"][u"content"]
-                refine_user(d)
 
+                refine_user(d)
                 user_skills(d)
+                user_stats(d)
+                user_external_accounts(d)
 
                 db.users.insert_one(d)
 
                 common.random_sleep(1)
                 break
             except urllib2.HTTPError, e:
-                if e.code == 404 or e.code == 403:
+                if e.code in (404, 403,):
                     add_invalid_handle(handle)
 
                     common.random_sleep(1)
@@ -144,6 +159,8 @@ def main():
                     print "HTTP Error", e.code, e.msg
                     print e.geturl()
                     print e.fp.read()
+            except KeyboardInterrupt:
+                return
             except:
                 traceback.print_exc()
 
@@ -155,6 +172,9 @@ if __name__ == "__main__":
         # noinspection PyBroadException
         try:
             main()
+
+            break
+        except KeyboardInterrupt:
             break
         except:
             traceback.print_exc()

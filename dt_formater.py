@@ -52,7 +52,6 @@ def main():
 
             format_challenge(challenge)
             db.challenges.replace_one({u"_id": challenge[u"_id"]}, challenge)
-
         except KeyError, e:
             print e
 

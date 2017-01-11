@@ -1,13 +1,12 @@
 from __future__ import print_function
 
 import cookielib
-import gzip
 import json
 import random
 import sys
 import time
 import urllib2
-from StringIO import StringIO
+import zlib
 from urllib import urlencode
 
 
@@ -47,22 +46,26 @@ def login():
 
 
 _std_headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:41.0) Gecko/20100101 Firefox/41.0",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:52.0) Gecko/20100101 Firefox/52.0",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3",
-    "Accept-Encoding": "gzip",
+    "Accept-Encoding": "gzip, deflate",
     "Cache-Control": "no-cache",
+    "Dnt": "1",
 }
 
 
 def open_request_and_read(request):
     response = urllib2.urlopen(request)
-    if response.info().get("Content-Encoding") == "gzip":
-        buf = StringIO(response.read())
-        f = gzip.GzipFile(fileobj=buf)
+    content = response.read()
+    encoding = response.info().get("Content-Encoding")
 
-        return f.read()
-    else:
-        return response.read()
+    if encoding == "gzip":
+        content = zlib.decompress(content, zlib.MAX_WBITS | 16)
+    elif encoding == "deflate":
+        content = zlib.decompress(content, -zlib.MAX_WBITS)
+
+    return content
 
 
 def make_request(method):
