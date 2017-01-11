@@ -3,6 +3,7 @@
 
 import ConfigParser
 import os
+import traceback
 import urllib2
 from urllib import quote
 
@@ -72,6 +73,12 @@ def main():
 
     invalid = set()
 
+    def add_invalid_handle(hdl):
+        invalid.add(hdl)
+        with open("config/invalid_handles", "w") as fp:
+            for h in sorted(invalid):
+                fp.write(h.encode("utf-8") + '\n')
+
     if os.path.exists("config/invalid_handles"):
         for line in open("config/invalid_handles"):
             line = line.strip()
@@ -81,11 +88,12 @@ def main():
     handles = set()
 
     for challenge in db.challenges.find():
-        for reg in challenge["registrants"]:
-            handle = reg["handle"].lower()
+        for reg in challenge[u"registrants"]:
+            handle = reg[u"handle"].lower()
 
-            if u' ' in handle or u'/' in handle or u'\\' in handle:
-                continue
+            for ch in ur" \/":
+                if ch in handle:
+                    continue
 
             if handle in invalid:
                 continue
@@ -101,12 +109,20 @@ def main():
     print len(handles), "users to be crawled."
     print "-----"
 
-    for handle in handles:
-        print handle
+    for index, handle in enumerate(handles):
+        print "[%d/%d]" % (index + 1, len(handles)), handle
 
         while True:
+            # noinspection PyBroadException
             try:
-                request = common.make_request(u"/v3.0.0/members/" + quote(handle))
+                try:
+                    quoted = quote(handle)
+                except KeyError:
+                    add_invalid_handle(handle)
+
+                    break
+
+                request = common.make_request(u"/v3.0.0/members/" + quoted)
                 s = common.open_request_and_read(request).decode("utf-8")
 
                 d = common.to_json(s)[u"result"][u"content"]
@@ -118,14 +134,9 @@ def main():
 
                 common.random_sleep(1)
                 break
-
             except urllib2.HTTPError, e:
                 if e.code == 404 or e.code == 403:
-                    invalid.add(handle)
-
-                    with open("config/invalid_handles", "w") as fp:
-                        for h in sorted(invalid):
-                            fp.write(h + '\n')
+                    add_invalid_handle(handle)
 
                     common.random_sleep(1)
                     break
@@ -133,17 +144,17 @@ def main():
                     print "HTTP Error", e.code, e.msg
                     print e.geturl()
                     print e.fp.read()
-            except Exception, e:
-                print "An unknown exception occurred:"
-                print e
+            except:
+                traceback.print_exc()
 
             common.random_sleep(20)
 
 
 if __name__ == "__main__":
     while True:
+        # noinspection PyBroadException
         try:
             main()
             break
-        except Exception, e:
-            print e
+        except:
+            traceback.print_exc()
