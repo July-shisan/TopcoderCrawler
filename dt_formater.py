@@ -1,6 +1,7 @@
+#!/usr/bin/env python2
 
-from pymongo import MongoClient
 import dateutil.parser
+from pymongo import MongoClient
 
 
 client = MongoClient()

@@ -1,7 +1,9 @@
+#!/usr/bin/env python2
+
 import ConfigParser
 import json
 
-import dateutil.parser  # pip install python-dateutil
+import dateutil.parser           # pip install python-dateutil
 from pymongo import MongoClient  # pip install pymongo
 
 import common

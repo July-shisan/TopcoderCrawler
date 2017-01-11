@@ -1,13 +1,13 @@
+#!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 
 import ConfigParser
 import os
-
 import urllib2
 from urllib import quote
 
-from pymongo import MongoClient
 import dateutil.parser
+from pymongo import MongoClient
 
 import common
 

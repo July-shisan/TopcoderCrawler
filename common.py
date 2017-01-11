@@ -1,16 +1,21 @@
+from __future__ import print_function
 
 import cookielib
+import gzip
+import json
+import random
+import sys
+import time
+import urllib2
 from StringIO import StringIO
 from urllib import urlencode
-import urllib2
-import gzip
-
-import json
-import time
-import random
 
 
-token = None
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
+
+token = ""
 
 
 def prepare(use_proxy):
@@ -63,7 +68,7 @@ def open_request_and_read(request):
 def make_request(method):
     headers = {}
 
-    if token is not None:
+    if token:
         headers["Authorization"] = "Bearer " + token
 
     headers.update(_std_headers)
@@ -79,11 +84,11 @@ def guarded_read(method):
         try:
             return open_request_and_read(make_request(method))
         except urllib2.HTTPError, e:
-            print "HTTP Error", e.code, e.msg
-            print e.geturl()
-            print e.fp.read()
+            eprint("HTTP Error", e.code, e.msg)
+            eprint(e.geturl())
+            eprint(e.fp.read())
         except Exception, e:
-            print e
+            eprint(e)
 
         random_sleep(20)
 

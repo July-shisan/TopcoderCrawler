@@ -1,7 +1,9 @@
+#!/usr/bin/env python2
+
+from collections import defaultdict
 from datetime import datetime
 
 from pymongo import MongoClient
-from collections import defaultdict
 
 
 def main(win_times, year_from):
