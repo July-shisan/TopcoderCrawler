@@ -3,8 +3,8 @@
 
 import os
 import traceback
+import urllib
 import urllib2
-from urllib import quote
 
 import dateutil.parser
 from pymongo import MongoClient
@@ -14,6 +14,12 @@ import config.users as g_config
 
 
 INVALID_HANDLES_FPATH = "config/invalid_handles"
+DOZE = 0.5
+ERROR_WAIT = 20
+
+
+def quote_handle(handle):
+    return urllib.quote(handle.encode("utf-8"))
 
 
 def refine_user(d):
@@ -24,8 +30,8 @@ def refine_user(d):
 
 
 def user_skills(d):
-    quoted = quote(d[u"handle"])
-    request = common.make_request(u"/v3/members/%s/skills/" % quoted)
+    handle = quote_handle(d[u"handle"])
+    request = common.make_request(u"/v3/members/%s/skills/" % handle)
     raw = common.open_request_and_read(request).decode("utf-8")
     skills = common.to_json(raw)
     skills = skills[u"result"][u"content"][u"skills"]
@@ -45,13 +51,19 @@ def user_external_accounts(d):
 
 
 def extra_info(d, category):
-    quoted = quote(d[u"handle"])
-    request = common.make_request(u"/v3/members/%s/%s/" % (quoted, category))
+    handle = quote_handle(d[u"handle"])
+    request = common.make_request(u"/v3/members/%s/%s/" % (handle, category))
     raw = common.open_request_and_read(request).decode("utf-8")
     info = common.to_json(raw)[u"result"][u"content"]
 
+    if info is None:
+        raise Exception(u"Failed to get `%s` info for %s" % (category, d[u"handle"]))
+
     del info[u"handle"]
     del info[u"userId"]
+
+    if u"handleLower" in info:
+        del info[u"handleLower"]
 
     del info[u"createdBy"]
     del info[u"createdAt"]
@@ -61,6 +73,7 @@ def extra_info(d, category):
     d[category] = info
 
 
+# noinspection PyBroadException
 def main():
     common.prepare(use_proxy=g_config.use_proxy)
 
@@ -83,17 +96,27 @@ def main():
 
         with open(INVALID_HANDLES_FPATH, "w") as fp:
             for h in sorted(invalid):
-                fp.write(h.encode("utf-8") + '\n')
+                try:
+                    fp.write(h.encode("utf-8") + '\n')
+                except UnicodeDecodeError:
+                    pass
 
     if os.path.exists(INVALID_HANDLES_FPATH):
         for line in open(INVALID_HANDLES_FPATH):
             line = line.strip()
             if line:
-                invalid.add(line)
+                invalid.add(line.decode("utf-8"))
 
     handles = set()
 
-    for challenge in db.challenges.find():
+    query = {u"handle": None}
+    field = {u"_id": 1}
+
+    nb_challeges = db.challenges.count()
+    for index, challenge in enumerate(db.challenges.find()):
+        if (index + 1) % 100 == 0:
+            print "Challenges: %d/%d" % (index + 1, nb_challeges)
+
         for reg in challenge[u"registrants"]:
             handle = reg[u"handle"].lower()
 
@@ -108,7 +131,8 @@ def main():
                 continue
 
             if not g_config.recrawl_all:
-                if db.users.find_one({u"handle": handle}, {u"_id": 1}):
+                query[u"handle"] = handle
+                if db.users.find_one(query, field) is not None:
                     continue
 
             handles.add(handle)
@@ -127,10 +151,9 @@ def main():
         print "[%d/%d]" % (index + 1, len(handles)), handle
 
         while True:
-            # noinspection PyBroadException
             try:
                 try:
-                    quoted = quote(handle)
+                    quoted = quote_handle(handle)
                 except KeyError:
                     add_invalid_handle(handle)
 
@@ -140,20 +163,28 @@ def main():
                 s = common.open_request_and_read(request).decode("utf-8")
                 d = common.to_json(s)[u"result"][u"content"]
 
-                refine_user(d)
-                user_skills(d)
-                user_stats(d)
-                user_external_accounts(d)
+                try:
+                    refine_user(d)
+                    user_skills(d)
+                    user_stats(d)
+                    user_external_accounts(d)
+                except:
+                    traceback.print_exc()
+
+                    add_invalid_handle(handle)
+
+                    common.random_sleep(DOZE)
+                    break
 
                 db.users.insert_one(d)
 
-                common.random_sleep(1)
+                common.random_sleep(DOZE)
                 break
             except urllib2.HTTPError, e:
                 if e.code in (404, 403,):
                     add_invalid_handle(handle)
 
-                    common.random_sleep(1)
+                    common.random_sleep(DOZE)
                     break
                 else:
                     print "HTTP Error", e.code, e.msg
@@ -164,7 +195,7 @@ def main():
             except:
                 traceback.print_exc()
 
-            common.random_sleep(20)
+            common.random_sleep(ERROR_WAIT)
 
 
 if __name__ == "__main__":
